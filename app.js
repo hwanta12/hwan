@@ -1,9 +1,8 @@
-// app.js
-
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
@@ -37,7 +36,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// 업로드할 파일의 필터링 조건 설정
 const upload = multer({
   storage: storage,
   fileFilter: function (req, file, cb) {
@@ -50,7 +48,6 @@ const upload = multer({
     cb("Error: File upload only supports the following filetypes - " + filetypes);
   }
 });
-
 // 홈 페이지
 app.get('/', (req, res) => {
   res.send(`
@@ -120,7 +117,6 @@ app.get('/', (req, res) => {
     </html>
   `);
 });
-
 // 분석 페이지
 app.post('/analyze', upload.single('video'), (req, res) => {
   const uploadTime = new Date().toLocaleString();
@@ -131,15 +127,24 @@ app.post('/analyze', upload.single('video'), (req, res) => {
     uploadTime: uploadTime,
     fileName: req.file.filename,
     fileSize: fileSize,
-    userId: userId // 회원 ID 저장
+    userId: userId, // 회원 ID 저장
+    videoPath: path.join('uploads/', req.file.filename) // 저장된 비디오의 경로 추가
   };
 
   // 히스토리에 업로드 정보 추가
   history.push(videoData);
-  // DB에 히스토리 저장
-  fs.writeFileSync(dbPath, JSON.stringify(history));
+  fs.writeFileSync(dbPath, JSON.stringify(history, null, 2));
 
-  res.send(`
+  // Python 스크립트의 실행을 임시 결과로 대체
+  setTimeout(() => { // setTimeout을 사용하여 비동기 처리를 시뮬레이션
+    const analysisResult = {
+      status: "Success",
+      message: "분석 결과 개발중. 세부 정보는 여기에 포함됩니다."
+    };
+    videoData.analysisResult = analysisResult;
+    fs.writeFileSync(dbPath, JSON.stringify(history, null, 2)); // 결과 업데이트
+
+    res.send(`
     <html>
     <head>
       <title>분석 완료</title>
@@ -147,8 +152,8 @@ app.post('/analyze', upload.single('video'), (req, res) => {
         body {
           font-family: Arial, sans-serif;
           margin: 0;
-          padding: 0;
-          text-align: center;
+          padding: 20px;
+          background-color: #f4f4f4;
         }
         .container {
           max-width: 800px;
@@ -156,34 +161,138 @@ app.post('/analyze', upload.single('video'), (req, res) => {
           padding: 20px;
           border: 1px solid #ccc;
           border-radius: 8px;
-          background-color: #f9f9f9;
+          background-color: #fff;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         h1 {
-          color: #4CAF50;
+          text-align: center;
+          color: #333;
+        }
+        p {
+          text-align: center;
         }
         .home-btn {
           display: block;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
+          width: 200px;
+          margin: 20px auto;
+          background-color: #28a745;
           color: white;
           padding: 10px 20px;
           border-radius: 4px;
+          text-align: center;
+          text-decoration: none;
         }
         .home-btn:hover {
-          background-color: #005580;
+          background-color: #218838;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <h1>분석이 완료되었습니다.</h1>
+        <p>분석 결과가 성공적으로 저장되었습니다.</p>
         <a href="/" class="home-btn">HOME으로 돌아가기</a>
       </div>
     </body>
     </html>
   `);
+  }, 1000); // 1초 후에 결과 반환
 });
+
+app.get('/viewHistory', (req, res) => {
+  const userId = req.query.userId;
+  const filteredHistory = history.filter(video => video.userId === userId);
+
+  let historyHtml = `
+    <html>
+    <head>
+      <title>회원별 업로드 히스토리</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 20px;
+          background-color: #f4f4f4;
+        }
+        .container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          background-color: #fff;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+          text-align: center;
+          color: #333;
+        }
+        ul {
+          list-style-type: none;
+          padding: 0;
+        }
+        li {
+          margin-bottom: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #ccc;
+        }
+        a {
+          color: #0066CC;
+          text-decoration: none;
+        }
+        a:hover {
+          text-decoration: underline;
+        }
+        .btn {
+          display: inline-block;
+          padding: 8px 15px;
+          margin-right: 10px;
+          border-radius: 4px;
+          background-color: #007BFF;
+          color: white;
+          text-align: center;
+          text-decoration: none;
+        }
+        .btn:hover {
+          background-color: #0056b3;
+        }
+        .home-btn {
+          display: block;
+          text-align: center;
+          margin-top: 20px;
+          background-color: #28a745;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+          text-decoration: none;
+        }
+        .home-btn:hover {
+          background-color: #218838;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>회원별 업로드 히스토리</h1>
+        <ul>
+  `;
+  if (filteredHistory.length > 0) {
+    filteredHistory.forEach((video, index) => {
+      historyHtml += `<li>${index + 1}. 업로드 일시: ${video.uploadTime}, 영상명: ${video.fileName}, 크기: ${video.fileSize} <a href="/video/${video.fileName}" class="btn">영상 보기</a><a href="/results/${video.fileName}" class="btn">분석 결과 보기</a></li>`;
+    });
+  } else {
+    historyHtml += '<p>일치하는 회원 ID로 업로드된 영상이 없습니다.</p>';
+  }
+  historyHtml += `
+        </ul>
+        <a href="/" class="home-btn">HOME으로 돌아가기</a>
+      </div>
+    </body>
+    </html>
+  `;
+  res.send(historyHtml);
+});
+
 
 // 히스토리 페이지
 app.get('/history', (req, res) => {
@@ -261,74 +370,72 @@ app.get('/history', (req, res) => {
   `);
 });
 
-// 회원 ID에 따른 히스토리 조회 페이지
-app.get('/viewHistory', (req, res) => {
-  const userId = req.query.userId;
-  const filteredHistory = history.filter(video => video.userId === userId);
 
-  let historyHtml = `
-    <html>
-    <head>
-      <title>회원별 업로드 히스토리</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-        }
-        .container {
-          max-width: 800px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        h1 {
-          text-align: center;
-        }
-        ul {
-          list-style-type: none;
-          padding: 0;
-        }
-        li {
-          margin-bottom: 10px;
-        }
-        .home-btn {
-          display: block;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-        }
-        .home-btn:hover {
-          background-color: #005580;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>회원별 업로드 히스토리</h1>
-  `;
-  if (filteredHistory.length > 0) {
-    historyHtml += '<ul>';
-    filteredHistory.forEach((video, index) => {
-      historyHtml += `<li>${index + 1}. 업로드 일시: ${video.uploadTime}, 영상명: ${video.fileName}, 크기: ${video.fileSize} <a href="/video/${video.fileName}">(영상 보기)</a></li>`;
-    });
-    historyHtml += '</ul>';
+// 분석 결과 보기 페이지
+app.get('/results/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
+  const videoEntry = history.find(video => video.fileName === fileName);
+  if (videoEntry && videoEntry.analysisResult) {
+    const resultHtml = `
+      <html>
+      <head>
+        <title>분석 결과</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+          }
+          .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
+          h1 {
+            text-align: center;
+            color: #333;
+          }
+          p {
+            white-space: pre-wrap; /* Maintains whitespace formatting */
+            word-wrap: break-word;
+          }
+          .home-btn {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+          }
+          .home-btn:hover {
+            background-color: #218838;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>분석 결과</h1>
+          <p>${JSON.stringify(videoEntry.analysisResult, null, 2)}</p>
+          <a href="/viewHistory?userId=${videoEntry.userId}" class="home-btn">돌아가기</a>
+        </div>
+      </body>
+      </html>
+    `;
+    res.send(resultHtml);
   } else {
-    historyHtml += '<p>일치하는 회원 ID로 업로드된 영상이 없습니다.</p>';
+    res.status(404).send('분석 결과를 찾을 수 없습니다.');
   }
-  historyHtml += `
-        <a href="/" class="home-btn">HOME으로 돌아가기</a>
-      </div>
-    </body>
-    </html>
-  `;
-  res.send(historyHtml);
 });
+
+
+
 
 // 영상 보기 페이지
 app.get('/video/:fileName', (req, res) => {
@@ -342,7 +449,7 @@ app.get('/video/:fileName', (req, res) => {
   }
 });
 
-// 서버 실행
+
 app.listen(port, () => {
-  console.log(`웹 앱이 http://localhost:${port} 에서 실행 중입니다.`);
+  console.log(`Server running on port ${port}`);
 });
