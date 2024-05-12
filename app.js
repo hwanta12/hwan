@@ -117,8 +117,64 @@ app.get('/', (req, res) => {
     </html>
   `);
 });
+
 // 분석 페이지
 app.post('/analyze', upload.single('video'), (req, res) => {
+  if (!req.file) { // 파일이 첨부되지 않았을 경우
+    return res.send(`
+      <html>
+      <head>
+        <title>파일 첨부 필요</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+          }
+          .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
+          h1 {
+            text-align: center;
+            color: #333;
+          }
+          .home-btn {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+          }
+          .home-btn:hover {
+            background-color: #218838;
+          }
+        </style>
+        <script type="text/javascript">
+          alert("영상 파일을 첨부해주세요.");
+          window.close;
+        </script>
+      </head>
+      <body>
+        <div class="container">
+          <h1>파일 첨부 오류</h1>
+          <p>분석을 위해 영상 파일을 첨부해야 합니다. 그동안 업로드 한 영상을 보시려면 업로드 히스토리 메뉴를 이용해주세요.</p>
+          <a href="/" class="home-btn">HOME으로 돌아가기</a>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+
   const uploadTime = new Date().toLocaleString();
   const fileSize = (req.file.size / 1024).toFixed(2) + ' KB';
   const userId = req.body.userId; // 회원 ID 입력 받기
@@ -127,8 +183,8 @@ app.post('/analyze', upload.single('video'), (req, res) => {
     uploadTime: uploadTime,
     fileName: req.file.filename,
     fileSize: fileSize,
-    userId: userId, // 회원 ID 저장
-    videoPath: path.join('uploads/', req.file.filename) // 저장된 비디오의 경로 추가
+    userId: userId,
+    videoPath: path.join('uploads/', req.file.filename)
   };
 
   // 히스토리에 업로드 정보 추가
