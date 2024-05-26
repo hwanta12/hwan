@@ -49,102 +49,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Route to display the admin login page
-app.get('/admin', (req, res) => {
+// 홈 페이지
+app.get('/', (req, res) => {
   res.send(`
     <html>
     <head>
-      <title>관리자 모드</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 20px;
-          background-color: #f4f4f4;
-        }
-        .container {
-          max-width: 400px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #fff;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-          text-align: center;
-          color: #333;
-        }
-        input[type="password"], button {
-          width: 100%;
-          padding: 10px;
-          margin-top: 10px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-        }
-        button {
-          background-color: #4CAF50;
-          color: white;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: #45a049;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>관리자 모드</h1>
-        <form action="/admin-login" method="post">
-          <input type="password" name="password" placeholder="비밀번호" required>
-          <button type="submit">로그인</button>
-        </form>
-      </div>
-    </body>
-    </html>
-  `);
-});
-
-// Admin login route
-app.post('/admin-login', (req, res) => {
-  const { password } = req.body;
-  if (password === adminPassword) {
-    res.redirect('/admin-dashboard');
-  } else {
-    res.send(`
-      <html>
-      <head>
-        <title>로그인 실패</title>
-        <script type="text/javascript">
-          alert("비밀번호가 틀렸습니다.");
-          window.location.href = '/admin';
-        </script>
-      </head>
-      <body>
-      </body>
-      </html>
-    `);
-  }
-});
-
-// Admin dashboard route
-app.get('/admin-dashboard', (req, res) => {
-  const mainFiles = fs.readdirSync(mainFilesDirectory);
-  let filesList = '';
-  mainFiles.forEach(file => {
-    filesList += `<li>${file} <button onclick="deleteFile('${file}')">삭제</button></li>`;
-  });
-
-  res.send(`
-    <html>
-    <head>
-      <title>관리자 대시보드</title>
+      <title>볼링자세 분석</title>
       <style>
         body {
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
-          background-color: #f4f4f4;
         }
         .container {
           max-width: 800px;
@@ -152,34 +67,27 @@ app.get('/admin-dashboard', (req, res) => {
           padding: 20px;
           border: 1px solid #ccc;
           border-radius: 8px;
-          background-color: #fff;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          background-color: #f9f9f9;
         }
         h1 {
           text-align: center;
         }
-        input[type="file"], button {
-          display: block;
-          width: 100%;
-          padding: 10px;
-          margin-top: 10px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
+        form {
+          margin-bottom: 20px;
+        }
+        input[type="file"] {
+          margin-bottom: 10px;
         }
         button {
+          padding: 10px 20px;
           background-color: #4CAF50;
           color: white;
+          border: none;
+          border-radius: 4px;
           cursor: pointer;
         }
         button:hover {
           background-color: #45a049;
-        }
-        ul {
-          list-style-type: none;
-          padding: 0;
-        }
-        li {
-          margin-bottom: 10px;
         }
         .home-btn {
           display: block;
@@ -194,94 +102,34 @@ app.get('/admin-dashboard', (req, res) => {
         .home-btn:hover {
           background-color: #005580;
         }
-      </style>
-      <script>
-        function deleteFile(fileName) {
-          fetch('/delete-main-file', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ fileName })
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              alert('파일이 삭제되었습니다.');
-              window.location.reload();
-            } else {
-              alert('파일 삭제에 실패했습니다.');
-            }
-          });
+        .admin-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          padding: 10px 20px;
+          background-color: #f00;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
         }
-      </script>
+      </style>
     </head>
     <body>
       <div class="container">
-        <h1>관리자 대시보드</h1>
-        <form action="/upload-main-file" method="post" enctype="multipart/form-data">
-          <input type="file" name="mainFile" required>
-          <button type="submit">메인 파일 업로드</button>
+        <h1>볼링자세 분석</h1>
+        <form action="/analyze" method="post" enctype="multipart/form-data">
+          <input type="file" name="video" accept=".mp4, .avi, .mpeg">
+          <input type="text" name="userId" placeholder="회원 ID">
+          <button type="submit">분석하기</button>
         </form>
-        <h2>업로드된 메인 파일</h2>
-        <ul>
-          ${filesList}
-        </ul>
-        <a href="/" class="home-btn">HOME으로 돌아가기</a>
-        <h2>비밀번호 변경</h2>
-        <form action="/change-password" method="post">
-          <input type="password" name="newPassword" placeholder="새 비밀번호" required>
-          <button type="submit">비밀번호 변경</button>
-        </form>
+        <a href="/history" class="home-btn">업로드 히스토리</a>
+        <button class="admin-btn" onclick="location.href='/admin'">관리자 모드</button>
       </div>
     </body>
     </html>
   `);
 });
-
-// 메인 파일 업로드 처리
-app.post('/upload-main-file', upload.single('mainFile'), (req, res) => {
-  res.redirect('/admin-dashboard');
-});
-
-// 메인 파일 삭제 처리
-app.post('/delete-main-file', (req, res) => {
-  const { fileName } = req.body;
-  const filePath = path.join(mainFilesDirectory, fileName);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    res.json({ success: true });
-  } else {
-    res.json({ success: false });
-  }
-});
-
-// 비밀번호 변경 처리
-app.post('/change-password', (req, res) => {
-  const { newPassword } = req.body;
-  adminPassword = newPassword;
-  fs.writeFileSync(adminPasswordPath, JSON.stringify({ password: adminPassword }));
-  res.send(`
-    <html>
-    <head>
-      <title>비밀번호 변경 완료</title>
-      <script type="text/javascript">
-        alert("비밀번호가 변경되었습니다.");
-        window.location.href = '/admin-dashboard';
-      </script>
-    </head>
-    <body>
-    </body>
-    </html>
-  `);
-});
-
-// 기타 라우트...
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
 
 // 분석 페이지
 app.post('/analyze', upload.single('video'), (req, res) => {
@@ -326,7 +174,7 @@ app.post('/analyze', upload.single('video'), (req, res) => {
         </style>
         <script type="text/javascript">
           alert("영상 파일을 첨부해주세요.");
-          window.close;
+          window.location.href = '/';
         </script>
       </head>
       <body>
@@ -349,10 +197,15 @@ app.post('/analyze', upload.single('video'), (req, res) => {
     fileName: req.file.filename,
     fileSize: fileSize,
     userId: userId,
-    videoPath: path.join('uploads/userFiles', req.file.filename)
+    videoPath: path.join('uploads', 'userFiles', req.file.filename)
   };
 
   // 히스토리에 업로드 정보 추가
+  const dbPath = path.join(__dirname, 'db.json');
+  let history = [];
+  if (fs.existsSync(dbPath)) {
+    history = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+  }
   history.push(videoData);
   fs.writeFileSync(dbPath, JSON.stringify(history, null, 2));
 
@@ -420,8 +273,90 @@ app.post('/analyze', upload.single('video'), (req, res) => {
   }, 1000); // 1초 후에 결과 반환
 });
 
+// 업로드 히스토리 페이지
+app.get('/history', (req, res) => {
+  res.send(`
+    <html>
+    <head>
+      <title>업로드 히스토리</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          background-color: #f9f9f9;
+        }
+        h1 {
+          text-align: center;
+        }
+        form {
+          margin-bottom: 20px;
+        }
+        input[type="text"] {
+          padding: 8px;
+          width: 200px;
+        }
+        button {
+          padding: 10px 20px;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button:hover {
+          background-color: #45a049;
+        }
+        ul {
+          list-style-type: none;
+          padding: 0;
+        }
+        li {
+          margin-bottom: 10px;
+        }
+        .home-btn {
+          display: block;
+          margin-top: 20px;
+          text-decoration: none;
+          background-color: #008CBA;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+        }
+        .home-btn:hover {
+          background-color: #005580;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>업로드 히스토리</h1>
+        <form action="/viewHistory" method="get">
+          <input type="text" name="userId" placeholder="회원 ID">
+          <button type="submit">조회하기</button>
+        </form>
+        <a href="/" class="home-btn">HOME으로 돌아가기</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// 회원별 업로드 히스토리 조회
 app.get('/viewHistory', (req, res) => {
   const userId = req.query.userId;
+  const dbPath = path.join(__dirname, 'db.json');
+  let history = [];
+  if (fs.existsSync(dbPath)) {
+    history = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+  }
   const filteredHistory = history.filter(video => video.userId === userId);
 
   let historyHtml = `
@@ -514,87 +449,14 @@ app.get('/viewHistory', (req, res) => {
   res.send(historyHtml);
 });
 
-
-// 히스토리 페이지
-app.get('/history', (req, res) => {
-  res.send(`
-    <html>
-    <head>
-      <title>업로드 히스토리</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-        }
-        .container {
-          max-width: 800px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        h1 {
-          text-align: center;
-        }
-        form {
-          margin-bottom: 20px;
-        }
-        input[type="text"] {
-          padding: 8px;
-          width: 200px;
-        }
-        button {
-          padding: 10px 20px;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: #45a049;
-        }
-        ul {
-          list-style-type: none;
-          padding: 0;
-        }
-        li {
-          margin-bottom: 10px;
-        }
-        .home-btn {
-          display: block;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-        }
-        .home-btn:hover {
-          background-color: #005580;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>업로드 히스토리</h1>
-        <form action="/viewHistory" method="get">
-          <input type="text" name="userId" placeholder="회원 ID">
-          <button type="submit">조회하기</button>
-        </form>
-        <a href="/" class="home-btn">HOME으로 돌아가기</a>
-      </div>
-    </body>
-    </html>
-  `);
-});
-
-
 // 분석 결과 보기 페이지
 app.get('/results/:fileName', (req, res) => {
   const fileName = req.params.fileName;
+  const dbPath = path.join(__dirname, 'db.json');
+  let history = [];
+  if (fs.existsSync(dbPath)) {
+    history = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+  }
   const videoEntry = history.find(video => video.fileName === fileName);
   if (videoEntry && videoEntry.analysisResult) {
     const resultHtml = `
@@ -655,11 +517,10 @@ app.get('/results/:fileName', (req, res) => {
   }
 });
 
-
 // 영상 보기 페이지
 app.get('/video/:fileName', (req, res) => {
   const fileName = req.params.fileName;
-  const filePath = path.join(userFilesDirectory, fileName);
+  const filePath = path.join(__dirname, 'uploads', 'userFiles', fileName);
 
   if (fs.existsSync(filePath)) {
     res.sendFile(filePath);
@@ -668,6 +529,365 @@ app.get('/video/:fileName', (req, res) => {
   }
 });
 
+// 관리자 모드 페이지
+app.get('/admin', (req, res) => {
+  res.send(`
+    <html>
+    <head>
+      <title>관리자 모드</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          background-color: #f9f9f9;
+        }
+        h1 {
+          text-align: center;
+        }
+        form {
+          margin-bottom: 20px;
+        }
+        input[type="file"], input[type="password"] {
+          margin-bottom: 10px;
+          display: block;
+          width: 100%;
+          padding: 10px;
+        }
+        button {
+          padding: 10px 20px;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        button:hover {
+          background-color: #45a049;
+        }
+        .home-btn {
+          display: block;
+          text-align: center;
+          margin-top: 20px;
+          text-decoration: none;
+          background-color: #008CBA;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+        }
+        .home-btn:hover {
+          background-color: #005580;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>관리자 로그인</h1>
+        <form action="/adminLogin" method="post">
+          <input type="password" name="password" placeholder="비밀번호" required>
+          <button type="submit">로그인</button>
+        </form>
+        <a href="/" class="home-btn">HOME으로 돌아가기</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+app.post('/adminLogin', (req, res) => {
+  const { password } = req.body;
+  if (password === adminPassword) {
+    res.send(`
+      <html>
+      <head>
+        <title>관리자 모드</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+          }
+          h1 {
+            text-align: center;
+          }
+          form {
+            margin-bottom: 20px;
+          }
+          input[type="file"], input[type="password"] {
+            margin-bottom: 10px;
+            display: block;
+            width: 100%;
+            padding: 10px;
+          }
+          button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          button:hover {
+            background-color: #45a049;
+          }
+          .home-btn {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+          }
+          .home-btn:hover {
+            background-color: #005580;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>관리자 모드</h1>
+          <form action="/uploadMainFile" method="post" enctype="multipart/form-data">
+            <input type="file" name="mainFile" accept=".jpg, .jpeg, .png" required>
+            <button type="submit">메인 파일 업로드</button>
+          </form>
+          <form action="/changePassword" method="post">
+            <input type="password" name="newPassword" placeholder="새 비밀번호" required>
+            <button type="submit">비밀번호 변경</button>
+          </form>
+          <h2>업로드된 메인 파일 목록</h2>
+          <ul>
+            ${fs.readdirSync(mainFilesDirectory).map(file => `<li>${file} <a href="/deleteMainFile?fileName=${file}">삭제</a></li>`).join('')}
+          </ul>
+          <a href="/" class="home-btn">HOME으로 돌아가기</a>
+        </div>
+      </body>
+      </html>
+    `);
+  } else {
+    res.send(`
+      <html>
+      <head>
+        <title>로그인 실패</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+          }
+          h1 {
+            text-align: center;
+            color: red;
+          }
+          .home-btn {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+          }
+          .home-btn:hover {
+            background-color: #005580;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>비밀번호가 틀렸습니다</h1>
+          <a href="/admin" class="home-btn">다시 시도하기</a>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+// 메인 파일 업로드
+app.post('/uploadMainFile', upload.single('mainFile'), (req, res) => {
+  if (!req.file) {
+    return res.send('파일 업로드 실패');
+  }
+  res.send(`
+    <html>
+    <head>
+      <title>업로드 완료</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          background-color: #f9f9f9;
+        }
+        h1 {
+          text-align: center;
+          color: green;
+        }
+        .home-btn {
+          display: block;
+          text-align: center;
+          margin-top: 20px;
+          text-decoration: none;
+          background-color: #008CBA;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+        }
+        .home-btn:hover {
+          background-color: #005580;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>메인 파일 업로드 완료</h1>
+        <a href="/admin" class="home-btn">관리자 모드로 돌아가기</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// 메인 파일 삭제
+app.get('/deleteMainFile', (req, res) => {
+  const { fileName } = req.query;
+  const filePath = path.join(mainFilesDirectory, fileName);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    res.send(`
+      <html>
+      <head>
+        <title>삭제 완료</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+          }
+          h1 {
+            text-align: center;
+            color: red;
+          }
+          .home-btn {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+          }
+          .home-btn:hover {
+            background-color: #005580;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>메인 파일 삭제 완료</h1>
+          <a href="/admin" class="home-btn">관리자 모드로 돌아가기</a>
+        </div>
+      </body>
+      </html>
+    `);
+  } else {
+    res.status(404).send('파일을 찾을 수 없습니다.');
+  }
+});
+
+// 비밀번호 변경
+app.post('/changePassword', (req, res) => {
+  const { newPassword } = req.body;
+  adminPassword = newPassword;
+  fs.writeFileSync(adminPasswordPath, JSON.stringify({ password: adminPassword }));
+  res.send(`
+    <html>
+    <head>
+      <title>비밀번호 변경 완료</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          background-color: #f9f9f9;
+        }
+        h1 {
+          text-align: center;
+          color: green;
+        }
+        .home-btn {
+          display: block;
+          text-align: center;
+          margin-top: 20px;
+          text-decoration: none;
+          background-color: #008CBA;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+        }
+        .home-btn:hover {
+          background-color: #005580;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>비밀번호 변경 완료</h1>
+        <a href="/admin" class="home-btn">관리자 모드로 돌아가기</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
