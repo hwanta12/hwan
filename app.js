@@ -531,9 +531,18 @@ app.get('/video/:fileName', (req, res) => {
 
 // 관리자 모드 페이지
 app.get('/admin', (req, res) => {
+  const files = fs.readdirSync(mainFilesDirectory);
+  let fileListHtml = '';
+  files.forEach(file => {
+    fileListHtml += `<li>${file} <a href="/uploads/mainFiles/${file}" target="_blank">보기</a> <a href="/deleteMainFile?fileName=${file}">삭제</a></li>`;
+  });
+
   res.send(`
-    <html>
+    <!DOCTYPE html>
+    <html lang="en">
     <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>관리자 모드</title>
       <style>
         body {
@@ -555,11 +564,11 @@ app.get('/admin', (req, res) => {
         form {
           margin-bottom: 20px;
         }
-        input[type="file"], input[type="password"] {
-          margin-bottom: 10px;
+        input[type="file"], input[type="password"], input[type="text"] {
           display: block;
-          width: 100%;
+          margin-bottom: 10px;
           padding: 10px;
+          width: calc(100% - 22px);
         }
         button {
           padding: 10px 20px;
@@ -585,151 +594,106 @@ app.get('/admin', (req, res) => {
         .home-btn:hover {
           background-color: #005580;
         }
+        .admin-btn {
+          position: absolute;
+          right: 10px;
+          top: 10px;
+          padding: 5px 10px;
+          background-color: #f1f1f1;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-size: 16px;
+        }
+        .admin-btn:hover {
+          background-color: #ddd;
+        }
+        /* 모달 스타일 */
+        .modal {
+          display: none;
+          position: fixed;
+          z-index: 1;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+          background-color: rgb(0,0,0);
+          background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+          background-color: #fefefe;
+          margin: 15% auto;
+          padding: 20px;
+          border: 1px solid #888;
+          width: 80%;
+          max-width: 400px;
+          border-radius: 8px;
+        }
+        .close {
+          color: #aaa;
+          float: right;
+          font-size: 28px;
+          font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+          color: black;
+          text-decoration: none;
+          cursor: pointer;
+        }
       </style>
     </head>
     <body>
       <div class="container">
-        <h1>관리자 로그인</h1>
-        <form action="/adminLogin" method="post">
-          <input type="password" name="password" placeholder="비밀번호" required>
-          <button type="submit">로그인</button>
+        <h1>관리자 모드</h1>
+        <form action="/uploadMainFile" method="post" enctype="multipart/form-data">
+          <input type="file" name="mainFile" accept=".jpg, .jpeg, .png" required>
+          <button type="submit">메인 파일 업로드</button>
         </form>
+        <button id="resetPasswordBtn">비밀번호 재설정</button>
+        <div id="resetPasswordModal" class="modal">
+          <div class="modal-content">
+            <span class="close">&times;</span>
+            <form action="/changePassword" method="post">
+              <input type="password" name="newPassword" placeholder="새 비밀번호" required>
+              <button type="submit">비밀번호 변경</button>
+            </form>
+          </div>
+        </div>
+        <h2>업로드된 메인 파일 목록</h2>
+        <ul>
+          ${fileListHtml}
+        </ul>
         <a href="/" class="home-btn">HOME으로 돌아가기</a>
       </div>
+
+      <script>
+        // 모달 열기
+        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+        const resetPasswordModal = document.getElementById('resetPasswordModal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        resetPasswordBtn.onclick = function() {
+          resetPasswordModal.style.display = 'block';
+        }
+
+        closeBtn.onclick = function() {
+          resetPasswordModal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+          if (event.target == resetPasswordModal) {
+            resetPasswordModal.style.display = 'none';
+          }
+        }
+      </script>
     </body>
     </html>
   `);
 });
 
-app.post('/adminLogin', (req, res) => {
-  const { password } = req.body;
-  if (password === adminPassword) {
-    res.send(`
-      <html>
-      <head>
-        <title>관리자 모드</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-          }
-          .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-          }
-          h1 {
-            text-align: center;
-          }
-          form {
-            margin-bottom: 20px;
-          }
-          input[type="file"], input[type="password"] {
-            margin-bottom: 10px;
-            display: block;
-            width: 100%;
-            padding: 10px;
-          }
-          button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          }
-          button:hover {
-            background-color: #45a049;
-          }
-          .home-btn {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            text-decoration: none;
-            background-color: #008CBA;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 4px;
-          }
-          .home-btn:hover {
-            background-color: #005580;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>관리자 모드</h1>
-          <form action="/uploadMainFile" method="post" enctype="multipart/form-data">
-            <input type="file" name="mainFile" accept=".jpg, .jpeg, .png" required>
-            <button type="submit">메인 파일 업로드</button>
-          </form>
-          <form action="/changePassword" method="post">
-            <input type="password" name="newPassword" placeholder="새 비밀번호" required>
-            <button type="submit">비밀번호 변경</button>
-          </form>
-          <h2>업로드된 메인 파일 목록</h2>
-          <ul>
-            ${fs.readdirSync(mainFilesDirectory).map(file => `<li>${file} <a href="/deleteMainFile?fileName=${file}">삭제</a></li>`).join('')}
-          </ul>
-          <a href="/" class="home-btn">HOME으로 돌아가기</a>
-        </div>
-      </body>
-      </html>
-    `);
-  } else {
-    res.send(`
-      <html>
-      <head>
-        <title>로그인 실패</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-          }
-          .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-          }
-          h1 {
-            text-align: center;
-            color: red;
-          }
-          .home-btn {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            text-decoration: none;
-            background-color: #008CBA;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 4px;
-          }
-          .home-btn:hover {
-            background-color: #005580;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>비밀번호가 틀렸습니다</h1>
-          <a href="/admin" class="home-btn">다시 시도하기</a>
-        </div>
-      </body>
-      </html>
-    `);
-  }
-});
-
-// 메인 파일 업로드
+// 메인 파일 업로드 핸들러
 app.post('/uploadMainFile', upload.single('mainFile'), (req, res) => {
   if (!req.file) {
     return res.send('파일 업로드 실패');
@@ -781,7 +745,7 @@ app.post('/uploadMainFile', upload.single('mainFile'), (req, res) => {
   `);
 });
 
-// 메인 파일 삭제
+// 메인 파일 삭제 핸들러
 app.get('/deleteMainFile', (req, res) => {
   const { fileName } = req.query;
   const filePath = path.join(mainFilesDirectory, fileName);
@@ -837,7 +801,7 @@ app.get('/deleteMainFile', (req, res) => {
   }
 });
 
-// 비밀번호 변경
+// 비밀번호 변경 핸들러
 app.post('/changePassword', (req, res) => {
   const { newPassword } = req.body;
   adminPassword = newPassword;
