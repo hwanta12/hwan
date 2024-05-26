@@ -10,8 +10,14 @@ const port = 3000;
 
 // 업로드된 파일의 저장 위치 설정
 const uploadDirectory = path.join(__dirname, 'uploads');
+const mainFilesDirectory = path.join(uploadDirectory, 'mainFiles');
+
 if (!fs.existsSync(uploadDirectory)) {
   fs.mkdirSync(uploadDirectory);
+}
+
+if (!fs.existsSync(mainFilesDirectory)) {
+  fs.mkdirSync(mainFilesDirectory);
 }
 
 // 데이터베이스 파일 경로
@@ -27,12 +33,21 @@ if (fs.existsSync(dbPath)) {
 // 업로드된 파일의 저장 위치와 이름 설정
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/')
+    cb(null, 'uploads/');
   },
   filename: function (req, file, cb) {
     const fileId = uuidv4(); // 파일마다 고유한 ID 생성
     const extension = path.extname(file.originalname);
     cb(null, fileId + extension);
+  }
+});
+
+const mainStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, mainFilesDirectory);
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
   }
 });
 
@@ -48,6 +63,20 @@ const upload = multer({
     cb("Error: File upload only supports the following filetypes - " + filetypes);
   }
 });
+
+const uploadMain = multer({
+  storage: mainStorage,
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpg|jpeg|png/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb("Error: File upload only supports the following filetypes - " + filetypes);
+  }
+});
+
 // 홈 페이지
 app.get('/', (req, res) => {
   res.send(`
@@ -111,6 +140,10 @@ app.get('/', (req, res) => {
           <input type="text" name="userId" placeholder="회원 ID">
           <button type="submit">분석하기</button>
         </form>
+        <form action="/upload-main" method="post" enctype="multipart/form-data">
+          <input type="file" name="mainFiles" accept=".jpg, .jpeg, .png" multiple>
+          <button type="submit">메인 파일 업로드</button>
+        </form>
         <a href="/history" class="home-btn">업로드 히스토리</a>
       </div>
     </body>
@@ -118,7 +151,16 @@ app.get('/', (req, res) => {
   `);
 });
 
-// 분석 페이지
+// 메인 파일 업로드 엔드포인트
+app.post('/upload-main', uploadMain.array('mainFiles', 30), (req, res) => {
+  if (req.files) {
+    res.json({ message: 'Main files uploaded successfully', files: req.files });
+  } else {
+    res.status(400).json({ message: 'Failed to upload main files' });
+  }
+});
+
+// 사용자 파일 업로드 엔드포인트
 app.post('/analyze', upload.single('video'), (req, res) => {
   if (!req.file) { // 파일이 첨부되지 않았을 경우
     return res.send(`
@@ -191,70 +233,83 @@ app.post('/analyze', upload.single('video'), (req, res) => {
   history.push(videoData);
   fs.writeFileSync(dbPath, JSON.stringify(history, null, 2));
 
-  // Python 스크립트의 실행을 임시 결과로 대체
-  setTimeout(() => { // setTimeout을 사용하여 비동기 처리를 시뮬레이션
+  // Python 스크립트의 실행
+  const mainFilePaths = fs.readdirSync(mainFilesDirectory).map(file => path.join(mainFilesDirectory, file)); // 메인 파일들 경로
+  const userFilePath = videoData.videoPath;
+  const command = `python compare_videos.py ${mainFilePaths.join(' ')} ${userFilePath}`; // 비교를 위한 Python 스크립트 명령어
+
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`exec error: ${error}`);
+      return res.status(500).send('분석 중 오류가 발생했습니다.');
+    }
+
     const analysisResult = {
       status: "Success",
-      message: "분석 결과 개발중. 세부 정보는 여기에 포함됩니다."
+      message: stdout
     };
     videoData.analysisResult = analysisResult;
     fs.writeFileSync(dbPath, JSON.stringify(history, null, 2)); // 결과 업데이트
 
+    // 사용자 파일 삭제
+    fs.unlinkSync(userFilePath);
+
     res.send(`
-    <html>
-    <head>
-      <title>분석 완료</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 20px;
-          background-color: #f4f4f4;
-        }
-        .container {
-          max-width: 800px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #fff;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-          text-align: center;
-          color: #333;
-        }
-        p {
-          text-align: center;
-        }
-        .home-btn {
-          display: block;
-          width: 200px;
-          margin: 20px auto;
-          background-color: #28a745;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-          text-align: center;
-          text-decoration: none;
-        }
-        .home-btn:hover {
-          background-color: #218838;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>분석이 완료되었습니다.</h1>
-        <p>분석 결과가 성공적으로 저장되었습니다.</p>
-        <a href="/" class="home-btn">HOME으로 돌아가기</a>
-      </div>
-    </body>
-    </html>
-  `);
-  }, 1000); // 1초 후에 결과 반환
+      <html>
+      <head>
+        <title>분석 완료</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+          }
+          .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
+          h1 {
+            text-align: center;
+            color: #333;
+          }
+          p {
+            text-align: center;
+          }
+          .home-btn {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-align: center;
+            text-decoration: none;
+          }
+          .home-btn:hover {
+            background-color: #218838;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>분석이 완료되었습니다.</h1>
+          <p>분석 결과가 성공적으로 저장되었습니다.</p>
+          <a href="/" class="home-btn">HOME으로 돌아가기</a>
+        </div>
+      </body>
+      </html>
+    `);
+  });
 });
 
+// 회원별 히스토리 조회 페이지
 app.get('/viewHistory', (req, res) => {
   const userId = req.query.userId;
   const filteredHistory = history.filter(video => video.userId === userId);
@@ -349,84 +404,6 @@ app.get('/viewHistory', (req, res) => {
   res.send(historyHtml);
 });
 
-
-// 히스토리 페이지
-app.get('/history', (req, res) => {
-  res.send(`
-    <html>
-    <head>
-      <title>업로드 히스토리</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-        }
-        .container {
-          max-width: 800px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        h1 {
-          text-align: center;
-        }
-        form {
-          margin-bottom: 20px;
-        }
-        input[type="text"] {
-          padding: 8px;
-          width: 200px;
-        }
-        button {
-          padding: 10px 20px;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: #45a049;
-        }
-        ul {
-          list-style-type: none;
-          padding: 0;
-        }
-        li {
-          margin-bottom: 10px;
-        }
-        .home-btn {
-          display: block;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-        }
-        .home-btn:hover {
-          background-color: #005580;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>업로드 히스토리</h1>
-        <form action="/viewHistory" method="get">
-          <input type="text" name="userId" placeholder="회원 ID">
-          <button type="submit">조회하기</button>
-        </form>
-        <a href="/" class="home-btn">HOME으로 돌아가기</a>
-      </div>
-    </body>
-    </html>
-  `);
-});
-
-
 // 분석 결과 보기 페이지
 app.get('/results/:fileName', (req, res) => {
   const fileName = req.params.fileName;
@@ -490,9 +467,6 @@ app.get('/results/:fileName', (req, res) => {
   }
 });
 
-
-
-
 // 영상 보기 페이지
 app.get('/video/:fileName', (req, res) => {
   const fileName = req.params.fileName;
@@ -504,7 +478,6 @@ app.get('/video/:fileName', (req, res) => {
     res.status(404).send('영상을 찾을 수 없습니다.');
   }
 });
-
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
