@@ -7,18 +7,23 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const port = 3000;
 
-// 업로드된 파일의 저장 위치 설정
-const uploadDirectory = path.join(__dirname, 'uploads');
-const mainFilesDirectory = path.join(uploadDirectory, 'mainFiles');
-const userFilesDirectory = path.join(uploadDirectory, 'userFiles');
+// Middleware to parse JSON bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Upload directory settings
+const userFilesDirectory = path.join(__dirname, 'uploads', 'userFiles');
+const mainFilesDirectory = path.join(__dirname, 'uploads', 'mainFiles');
+if (!fs.existsSync(userFilesDirectory)) {
+  fs.mkdirSync(userFilesDirectory, { recursive: true });
+}
+if (!fs.existsSync(mainFilesDirectory)) {
+  fs.mkdirSync(mainFilesDirectory, { recursive: true });
+}
+
+// Admin password file path and initial password
 const adminPasswordPath = path.join(__dirname, 'adminPassword.json');
-
-if (!fs.existsSync(uploadDirectory)) fs.mkdirSync(uploadDirectory);
-if (!fs.existsSync(mainFilesDirectory)) fs.mkdirSync(mainFilesDirectory);
-if (!fs.existsSync(userFilesDirectory)) fs.mkdirSync(userFilesDirectory);
-
-// 초기 관리자 비밀번호 설정
-let adminPassword = '0000';
+let adminPassword = '0000'; // Default password
 if (fs.existsSync(adminPasswordPath)) {
   const data = fs.readFileSync(adminPasswordPath, 'utf8');
   adminPassword = JSON.parse(data).password;
@@ -26,120 +31,25 @@ if (fs.existsSync(adminPasswordPath)) {
   fs.writeFileSync(adminPasswordPath, JSON.stringify({ password: adminPassword }));
 }
 
-// 데이터베이스 파일 경로
-const dbPath = path.join(__dirname, 'db.json');
-
-// 히스토리 데이터 로드
-let history = [];
-if (fs.existsSync(dbPath)) {
-  const data = fs.readFileSync(dbPath, 'utf8');
-  history = JSON.parse(data);
-}
-
-// 업로드된 파일의 저장 위치와 이름 설정
+// Multer settings for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const destinationPath = req.body.isMainFile === 'true' ? mainFilesDirectory : userFilesDirectory;
-    cb(null, destinationPath);
+    if (file.fieldname === 'mainFile') {
+      cb(null, mainFilesDirectory);
+    } else {
+      cb(null, userFilesDirectory);
+    }
   },
   filename: function (req, file, cb) {
-    const fileId = uuidv4(); // 파일마다 고유한 ID 생성
+    const fileId = uuidv4();
     const extension = path.extname(file.originalname);
     cb(null, fileId + extension);
   }
 });
 
-const upload = multer({
-  storage: storage,
-  fileFilter: function (req, file, cb) {
-    const filetypes = /mp4|avi|mpeg|jpg|jpeg|png/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb("Error: File upload only supports the following filetypes - " + filetypes);
-  }
-});
+const upload = multer({ storage: storage });
 
-// 홈 페이지
-app.get('/', (req, res) => {
-  res.send(`
-    <html>
-    <head>
-      <title>볼링자세 분석</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-        }
-        .container {
-          max-width: 800px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        h1 {
-          text-align: center;
-        }
-        form {
-          margin-bottom: 20px;
-        }
-        input[type="file"] {
-          margin-bottom: 10px;
-        }
-        button {
-          padding: 10px 20px;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: #45a049;
-        }
-        .home-btn {
-          display: block;
-          text-align: center;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-        }
-        .home-btn:hover {
-          background-color: #005580;
-        }
-        .admin-btn {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background-color: red;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>볼링자세 분석</h1>
-        <form action="/analyze" method="post" enctype="multipart/form-data">
-          <input type="file" name="video" accept=".mp4, .avi, .mpeg, .jpg, .jpeg, .png">
-          <input type="text" name="userId" placeholder="회원 ID">
-          <button type="submit">분석하기</button>
-        </form>
-        <a href="/history" class="home-btn">업로드 히스토리</a>
-        <button class="admin-btn" onclick="window.location.href='/admin'">관리자 모드</button>
-      </div>
-    </body>
-    </html>
-  `);
-});
-
-// 관리자 모드 페이지
+// Route to display the admin login page
 app.get('/admin', (req, res) => {
   res.send(`
     <html>
@@ -149,56 +59,42 @@ app.get('/admin', (req, res) => {
         body {
           font-family: Arial, sans-serif;
           margin: 0;
-          padding: 0;
+          padding: 20px;
+          background-color: #f4f4f4;
         }
         .container {
-          max-width: 800px;
+          max-width: 400px;
           margin: 20px auto;
           padding: 20px;
           border: 1px solid #ccc;
           border-radius: 8px;
-          background-color: #f9f9f9;
+          background-color: #fff;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         h1 {
           text-align: center;
+          color: #333;
         }
-        form {
-          margin-bottom: 20px;
-        }
-        input[type="file"], input[type="password"], input[type="text"] {
-          margin-bottom: 10px;
+        input[type="password"], button {
           width: 100%;
           padding: 10px;
+          margin-top: 10px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
         }
         button {
-          padding: 10px 20px;
           background-color: #4CAF50;
           color: white;
-          border: none;
-          border-radius: 4px;
           cursor: pointer;
         }
         button:hover {
           background-color: #45a049;
         }
-        .home-btn {
-          display: block;
-          text-align: center;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-        }
-        .home-btn:hover {
-          background-color: #005580;
-        }
       </style>
     </head>
     <body>
       <div class="container">
-        <h1>관리자 로그인</h1>
+        <h1>관리자 모드</h1>
         <form action="/admin-login" method="post">
           <input type="password" name="password" placeholder="비밀번호" required>
           <button type="submit">로그인</button>
@@ -209,7 +105,7 @@ app.get('/admin', (req, res) => {
   `);
 });
 
-// 관리자 로그인 처리
+// Admin login route
 app.post('/admin-login', (req, res) => {
   const { password } = req.body;
   if (password === adminPassword) {
@@ -218,9 +114,9 @@ app.post('/admin-login', (req, res) => {
     res.send(`
       <html>
       <head>
-        <title>관리자 로그인 실패</title>
+        <title>로그인 실패</title>
         <script type="text/javascript">
-          alert("비밀번호가 일치하지 않습니다.");
+          alert("비밀번호가 틀렸습니다.");
           window.location.href = '/admin';
         </script>
       </head>
@@ -231,7 +127,7 @@ app.post('/admin-login', (req, res) => {
   }
 });
 
-// 관리자 대시보드 페이지
+// Admin dashboard route
 app.get('/admin-dashboard', (req, res) => {
   const mainFiles = fs.readdirSync(mainFilesDirectory);
   let filesList = '';
@@ -248,6 +144,7 @@ app.get('/admin-dashboard', (req, res) => {
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
+          background-color: #f4f4f4;
         }
         .container {
           max-width: 800px;
@@ -255,32 +152,30 @@ app.get('/admin-dashboard', (req, res) => {
           padding: 20px;
           border: 1px solid #ccc;
           border-radius: 8px;
-          background-color: #f9f9f9;
+          background-color: #fff;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         h1 {
           text-align: center;
         }
-        form {
-          margin-bottom: 20px;
-        }
-        input[type="file"], input[type="password"], input[type="text"] {
-          margin-bottom: 10px;
+        input[type="file"], button {
+          display: block;
           width: 100%;
           padding: 10px;
+          margin-top: 10px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
         }
         button {
-          padding: 10px 20px;
           background-color: #4CAF50;
           color: white;
-          border: none;
-          border-radius: 4px;
           cursor: pointer;
         }
         button:hover {
           background-color: #45a049;
         }
         ul {
-          list-style: none;
+          list-style-type: none;
           padding: 0;
         }
         li {
@@ -380,6 +275,13 @@ app.post('/change-password', (req, res) => {
     </html>
   `);
 });
+
+// 기타 라우트...
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
 
 // 분석 페이지
 app.post('/analyze', upload.single('video'), (req, res) => {
