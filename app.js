@@ -52,80 +52,214 @@ const upload = multer({ storage: storage });
 // 홈 페이지
 app.get('/', (req, res) => {
   res.send(`
-    <html>
+    <!DOCTYPE html>
+    <html lang="ko">
     <head>
-      <title>볼링자세 분석</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0;
-        }
-        .container {
-          max-width: 800px;
-          margin: 20px auto;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        h1 {
-          text-align: center;
-        }
-        form {
-          margin-bottom: 20px;
-        }
-        input[type="file"] {
-          margin-bottom: 10px;
-        }
-        button {
-          padding: 10px 20px;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: #45a049;
-        }
-        .home-btn {
-          display: block;
-          text-align: center;
-          margin-top: 20px;
-          text-decoration: none;
-          background-color: #008CBA;
-          color: white;
-          padding: 10px 20px;
-          border-radius: 4px;
-        }
-        .home-btn:hover {
-          background-color: #005580;
-        }
-        .admin-btn {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          padding: 10px 20px;
-          background-color: #f00;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-      </style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>볼링자세 분석</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+            }
+            .container {
+                max-width: 800px;
+                margin: 20px auto;
+                padding: 20px;
+                border: 1px solid #ccc;
+                border-radius: 8px;
+                background-color: #fff;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            h1 {
+                text-align: center;
+                color: #333;
+            }
+            form {
+                margin-bottom: 20px;
+            }
+            input[type="file"], input[type="password"], input[type="text"] {
+                display: block;
+                margin-bottom: 10px;
+                padding: 10px;
+                width: calc(100% - 22px);
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            button {
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #45a049;
+            }
+            .home-btn {
+                display: block;
+                text-align: center;
+                margin-top: 20px;
+                text-decoration: none;
+                background-color: #008CBA;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+            }
+            .home-btn:hover {
+                background-color: #005580;
+            }
+            .admin-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                padding: 10px 20px;
+                background-color: #f00;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .admin-btn:hover {
+                background-color: #c00;
+            }
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+            li {
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #ccc;
+            }
+            a {
+                color: #0066CC;
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            .btn {
+                display: inline-block;
+                padding: 8px 15px;
+                margin-right: 10px;
+                border-radius: 4px;
+                background-color: #007BFF;
+                color: white;
+                text-align: center;
+                text-decoration: none;
+            }
+            .btn:hover {
+                background-color: #0056b3;
+            }
+            .modal {
+                display: none;
+                position: fixed;
+                z-index: 1;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: rgb(0,0,0);
+                background-color: rgba(0,0,0,0.4);
+            }
+            .modal-content {
+                background-color: #fefefe;
+                margin: 15% auto;
+                padding: 20px;
+                border: 1px solid #888;
+                width: 80%;
+                max-width: 400px;
+                border-radius: 8px;
+            }
+            .close {
+                color: #aaa;
+                float: right;
+                font-size: 28px;
+                font-weight: bold;
+            }
+            .close:hover,
+            .close:focus {
+                color: black;
+                text-decoration: none;
+                cursor: pointer;
+            }
+            .loader {
+                border: 4px solid #f3f3f3;
+                border-radius: 50%;
+                border-top: 4px solid #007bff;
+                width: 40px;
+                height: 40px;
+                animation: spin 2s linear infinite;
+                margin: 20px auto;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+        <script>
+            function handleSubmit(event) {
+                event.preventDefault();
+                document.querySelector(".container").innerHTML = \`
+                    <h1>자세 분석중...</h1>
+                    <div class="loader"></div>
+                \`;
+                setTimeout(showResultButton, 10000);
+            }
+
+            function showResultButton() {
+                const container = document.querySelector(".container");
+                container.innerHTML += \`
+                    <button id="resultButton" onclick="alert('분석 결과를 확인하세요!')">결과 확인</button>
+                \`;
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                const form = document.getElementById("uploadForm");
+                form.addEventListener("submit", handleSubmit);
+            });
+
+            // 모달 열기
+            document.addEventListener("DOMContentLoaded", function() {
+                const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+                const resetPasswordModal = document.getElementById('resetPasswordModal');
+                const closeBtn = document.getElementsByClassName('close')[0];
+
+                resetPasswordBtn.onclick = function() {
+                    resetPasswordModal.style.display = 'block';
+                }
+
+                closeBtn.onclick = function() {
+                    resetPasswordModal.style.display = 'none';
+                }
+
+                window.onclick = function(event) {
+                    if (event.target == resetPasswordModal) {
+                        resetPasswordModal.style.display = 'none';
+                    }
+                }
+            });
+        </script>
     </head>
     <body>
-      <div class="container">
-        <h1>볼링자세 분석</h1>
-        <form action="/analyze" method="post" enctype="multipart/form-data">
-          <input type="file" name="video" accept=".mp4, .avi, .mpeg">
-          <input type="text" name="userId" placeholder="회원 ID">
-          <button type="submit">분석하기</button>
-        </form>
-        <a href="/history" class="home-btn">업로드 히스토리</a>
-        <button class="admin-btn" onclick="location.href='/admin'">관리자 모드</button>
-      </div>
+        <div class="container">
+            <h1>볼링자세 분석</h1>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" name="video" accept=".mp4, .avi, .mpeg">
+                <input type="text" name="userId" placeholder="회원 ID">
+                <button type="submit">분석하기</button>
+            </form>
+            <a href="/history" class="home-btn">업로드 히스토리</a>
+            <button class="admin-btn" onclick="location.href='/admin'">관리자 모드</button>
+        </div>
     </body>
     </html>
   `);
