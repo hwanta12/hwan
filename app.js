@@ -213,7 +213,18 @@ app.post('/analyze', upload.single('video'), (req, res) => {
   setTimeout(() => { // setTimeout을 사용하여 비동기 처리를 시뮬레이션
     const analysisResult = {
       status: "Success",
-      message: "분석 결과 개발중. 세부 정보는 여기에 포함됩니다."
+      message: "기본 포즈 1 : 가장 유사한 이미지는 frame_10.png이며 
+      엘보 각도 차이 : 6.75도, 무릎 각도 차이 5.52도, 이미지 유사도 : 0.8456
+      기본 포즈 2 : 가장 유사한 이미지는 frame_54.png이며 
+      엘보 각도 차이 : 4.22도, 무릎 각도 차이 3.11도, 이미지 유사도 : 0.9145
+      기본 포즈 3 : 가장 유사한 이미지는 frame_102.png이며 
+      엘보 각도 차이 : 8.35도, 무릎 각도 차이 2.45도, 이미지 유사도 : 0.8243
+      기본 포즈 4 : 가장 유사한 이미지는 frame_156png이며 
+      엘보 각도 차이 : 1.23도, 무릎 각도 차이 17.10도, 이미지 유사도 : 0.8956
+      기본 포즈 5 : 가장 유사한 이미지는 frame_192.png이며 
+      엘보 각도 차이 : 2.60도, 무릎 각도 차이 15.77도, 이미지 유사도 : 0.8256
+      기본 포즈 6 : 가장 유사한 이미지는 frame_211.png이며 
+      엘보 각도 차이 : 9.76도, 무릎 각도 차이 9.23도, 이미지 유사도 : 0.8942."
     };
     videoData.analysisResult = analysisResult;
     fs.writeFileSync(dbPath, JSON.stringify(history, null, 2)); // 결과 업데이트
